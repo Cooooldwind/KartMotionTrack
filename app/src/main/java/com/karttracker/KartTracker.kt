@@ -8,6 +8,8 @@ import com.karttracker.model.TrackPoint
 import com.karttracker.sensors.GPSCollector
 import com.karttracker.sensors.IMUSampler
 import com.karttracker.storage.BatchJsonWriter
+import com.karttracker.fusion.SharpTurnCorrector
+import com.karttracker.fusion.MadgwickFilter
 import kotlinx.coroutines.*
 import java.io.File
 import java.text.SimpleDateFormat
@@ -53,10 +55,10 @@ class KartTracker(private val context: Context) {
     private var isInterpolating = false
     
     // 姿态跟踪
-    private val madgwickFilter = com.karttracker.fusion.MadgwickFilter()
+    private val madgwickFilter = MadgwickFilter()
     
     // 急转弯修正器
-    private val sharpTurnCorrector = com.karttracker.fusion.SharpTurnCorrector()
+    private val sharpTurnCorrector = SharpTurnCorrector()
     
     // 当前急转弯状态
     private var currentTurnState: SharpTurnCorrector.TurnState? = null
