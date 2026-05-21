@@ -277,10 +277,12 @@ class KartTracker(private val context: Context) {
                 val finalAlt = lerp(start.alt, end.alt, progress)
                 val finalSpeed = lerp(start.speed, end.speed, progress)
                 
+                val turnState = currentTurnState
+                
                 if (turnState != null && turnState.confidence > 0.3) {
                     val bearing = (start.bearing + (end.bearing - start.bearing) * progress)
                     val (correctedLat, correctedLon) = sharpTurnCorrector.applyCorrection(
-                        lat, lon, bearing, turnState.lateralOffset
+                        finalLat, finalLon, bearing, turnState.lateralOffset
                     )
                     
                     finalLat = correctedLat
