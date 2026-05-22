@@ -56,14 +56,20 @@ class TrackFileManager(private val context: Context) {
         val endDate = startDate?.let { Date(it.time + duration) }
         val endTime = endDate?.let { dateFormat.format(it) } ?: startTime
         
+        val sortedPoints = points.sortedBy { it.timestamp }
+        
         return TrackData(
             fileName = file.name,
             filePath = file.absolutePath,
             startTime = startTime,
             endTime = endTime,
-            pointCount = points.size.toLong(),
-            duration = duration,
-            maxSpeed = points.maxOfOrNull { it.speed } ?: 0f
+            pointCount = sortedPoints.size.toLong(),
+            duration = if (sortedPoints.size >= 2) {
+                ((sortedPoints.last().timestamp - sortedPoints.first().timestamp) * 1000).toLong()
+            } else {
+                0L
+            },
+            maxSpeed = sortedPoints.maxOfOrNull { it.speed } ?: 0f
         )
     }
     
@@ -84,7 +90,7 @@ class TrackFileManager(private val context: Context) {
             }
         }
         
-        return points
+        return points.sortedBy { it.timestamp }
     }
     
     fun exportToGPX(filePath: String): String {
