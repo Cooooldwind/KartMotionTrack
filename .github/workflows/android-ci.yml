@@ -46,8 +46,6 @@ jobs:
     
     - name: Build with Gradle
       run: gradle assembleDebug --no-daemon --stacktrace
-      env:
-        JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.9_9/x64
     
     - name: Upload APK
       uses: actions/upload-artifact@v4
@@ -59,8 +57,6 @@ jobs:
     - name: Build with Gradle (Release)
       if: github.ref == 'refs/heads/main'
       run: gradle assembleRelease --no-daemon --stacktrace
-      env:
-        JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.9_9/x64
     
     - name: Upload Release APK
       if: github.ref == 'refs/heads/main'
