@@ -1,12 +1,19 @@
 package com.karttracker
 
+import android.app.Dialog
 import android.os.Bundle
+import android.view.View
 import android.widget.Button
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.karttracker.model.TrackPoint
 import com.karttracker.storage.TrackFileManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -18,6 +25,10 @@ class TrackDetailActivity : AppCompatActivity() {
     private lateinit var btnDelete: Button
     private var filePath: String = ""
     private var points: List<TrackPoint> = emptyList()
+    
+    private lateinit var progressDialog: Dialog
+    private lateinit var progressBar: ProgressBar
+    private lateinit var tvProgress: TextView
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,21 +46,39 @@ class TrackDetailActivity : AppCompatActivity() {
         
         filePath = intent.getStringExtra("filePath") ?: ""
         
-        loadTrackData()
+        initProgressDialog()
+        loadTrackDataAsync()
         
-        btnExportGPX.setOnClickListener { exportGPX() }
-        btnExportCSV.setOnClickListener { exportCSV() }
+        btnExportGPX.setOnClickListener { exportGPXWithProgress() }
+        btnExportCSV.setOnClickListener { exportCSVWithProgress() }
         btnDelete.setOnClickListener { deleteTrack() }
     }
     
-    private fun loadTrackData() {
-        points = trackFileManager.loadTrackPoints(filePath)
+    private fun initProgressDialog() {
+        progressDialog = Dialog(this)
+        progressDialog.setContentView(R.layout.dialog_progress)
+        progressDialog.setCancelable(false)
         
-        if (points.isEmpty()) {
-            tvInfo.text = "轨迹数据为空"
-            return
+        progressBar = progressDialog.findViewById(R.id.progressBar)
+        tvProgress = progressDialog.findViewById(R.id.tvProgress)
+    }
+    
+    private fun loadTrackDataAsync() {
+        GlobalScope.launch(Dispatchers.IO) {
+            points = trackFileManager.loadTrackPoints(filePath)
+            
+            withContext(Dispatchers.Main) {
+                if (points.isEmpty()) {
+                    tvInfo.text = "轨迹数据为空"
+                    return@withContext
+                }
+                
+                displayTrackInfo()
+            }
         }
-        
+    }
+    
+    private fun displayTrackInfo() {
         val start = points.first()
         val end = points.last()
         
@@ -85,7 +114,7 @@ class TrackDetailActivity : AppCompatActivity() {
     }
     
     private fun haversine(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
-        val R = 6371000.0 // 地球半径（米）
+        val R = 6371000.0
         val dLat = Math.toRadians(lat2 - lat1)
         val dLon = Math.toRadians(lon2 - lon1)
         val a = Math.sin(dLat/2) * Math.sin(dLat/2) +
@@ -106,22 +135,63 @@ class TrackDetailActivity : AppCompatActivity() {
         }
     }
     
-    private fun exportGPX() {
-        val outputPath = trackFileManager.exportToGPX(filePath)
-        if (outputPath.isNotEmpty()) {
-            Toast.makeText(this, "GPX导出成功: $outputPath", Toast.LENGTH_LONG).show()
-        } else {
-            Toast.makeText(this, "导出失败", Toast.LENGTH_SHORT).show()
+    private fun exportGPXWithProgress() {
+        showProgressDialog("正在导出GPX...")
+        
+        GlobalScope.launch(Dispatchers.IO) {
+            val outputPath = trackFileManager.exportToGPX(filePath) { progress ->
+                GlobalScope.launch(Dispatchers.Main) {
+                    updateProgress(progress)
+                }
+            }
+            
+            withContext(Dispatchers.Main) {
+                dismissProgressDialog()
+                
+                if (outputPath.isNotEmpty()) {
+                    Toast.makeText(this@TrackDetailActivity, "GPX导出成功: $outputPath", Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(this@TrackDetailActivity, "导出失败", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
     
-    private fun exportCSV() {
-        val outputPath = trackFileManager.exportToCSV(filePath)
-        if (outputPath.isNotEmpty()) {
-            Toast.makeText(this, "CSV导出成功: $outputPath", Toast.LENGTH_LONG).show()
-        } else {
-            Toast.makeText(this, "导出失败", Toast.LENGTH_SHORT).show()
+    private fun exportCSVWithProgress() {
+        showProgressDialog("正在导出CSV...")
+        
+        GlobalScope.launch(Dispatchers.IO) {
+            val outputPath = trackFileManager.exportToCSV(filePath) { progress ->
+                GlobalScope.launch(Dispatchers.Main) {
+                    updateProgress(progress)
+                }
+            }
+            
+            withContext(Dispatchers.Main) {
+                dismissProgressDialog()
+                
+                if (outputPath.isNotEmpty()) {
+                    Toast.makeText(this@TrackDetailActivity, "CSV导出成功: $outputPath", Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(this@TrackDetailActivity, "导出失败", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
+    }
+    
+    private fun showProgressDialog(message: String) {
+        tvProgress.text = "$message (0%)"
+        progressBar.progress = 0
+        progressDialog.show()
+    }
+    
+    private fun updateProgress(progress: Int) {
+        progressBar.progress = progress
+        tvProgress.text = "${tvProgress.text.split("(")[0]}($progress%)"
+    }
+    
+    private fun dismissProgressDialog() {
+        progressDialog.dismiss()
     }
     
     private fun deleteTrack() {

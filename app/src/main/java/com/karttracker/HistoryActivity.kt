@@ -5,17 +5,25 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ProgressBar
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.karttracker.model.TrackData
 import com.karttracker.storage.TrackFileManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 
 class HistoryActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
+    private lateinit var progressBar: ProgressBar
+    private lateinit var tvLoading: TextView
     private lateinit var trackFileManager: TrackFileManager
     private lateinit var adapter: TrackListAdapter
     
@@ -28,24 +36,57 @@ class HistoryActivity : AppCompatActivity() {
         
         recyclerView = findViewById(R.id.recyclerView)
         recyclerView.layoutManager = LinearLayoutManager(this)
+        recyclerView.visibility = View.GONE
+        
+        progressBar = findViewById(R.id.progressBar)
+        tvLoading = findViewById(R.id.tvLoading)
         
         trackFileManager = TrackFileManager(this)
-        loadTrackFiles()
+        loadTrackFilesAsync()
     }
     
-    private fun loadTrackFiles() {
-        val trackFiles = trackFileManager.getAllTrackFiles()
-        adapter = TrackListAdapter(trackFiles) { trackData ->
-            val intent = Intent(this, TrackDetailActivity::class.java)
-            intent.putExtra("filePath", trackData.filePath)
-            startActivity(intent)
+    private fun loadTrackFilesAsync() {
+        progressBar.visibility = View.VISIBLE
+        tvLoading.visibility = View.VISIBLE
+        tvLoading.text = "正在加载轨迹列表..."
+        
+        GlobalScope.launch(Dispatchers.IO) {
+            try {
+                val trackFiles = trackFileManager.getAllTrackFiles()
+                
+                withContext(Dispatchers.Main) {
+                    progressBar.visibility = View.GONE
+                    tvLoading.visibility = View.GONE
+                    recyclerView.visibility = View.VISIBLE
+                    
+                    if (trackFiles.isEmpty()) {
+                        tvLoading.visibility = View.VISIBLE
+                        tvLoading.text = "暂无轨迹记录"
+                        return@withContext
+                    }
+                    
+                    adapter = TrackListAdapter(trackFiles) { trackData ->
+                        val intent = Intent(this@HistoryActivity, TrackDetailActivity::class.java)
+                        intent.putExtra("filePath", trackData.filePath)
+                        startActivity(intent)
+                    }
+                    recyclerView.adapter = adapter
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    progressBar.visibility = View.GONE
+                    tvLoading.visibility = View.VISIBLE
+                    tvLoading.text = "加载失败: ${e.message}"
+                    Toast.makeText(this@HistoryActivity, "加载失败", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
-        recyclerView.adapter = adapter
     }
     
     override fun onResume() {
         super.onResume()
-        loadTrackFiles()
+        loadTrackFilesAsync()
     }
     
     override fun onSupportNavigateUp(): Boolean {
@@ -74,7 +115,6 @@ class HistoryActivity : AppCompatActivity() {
             val track = tracks[position]
             holder.itemView.setOnClickListener { onItemClick(track) }
             
-            // 格式化日期
             val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
             val date = dateFormat.parse(track.startTime)
             val displayDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(date)
@@ -83,7 +123,6 @@ class HistoryActivity : AppCompatActivity() {
             holder.tvDate.text = displayDate
             holder.tvTime.text = "开始时间: $displayTime"
             
-            // 显示统计信息
             val durationStr = formatDuration(track.duration)
             val maxSpeedKm = (track.maxSpeed * 3.6).toInt()
             holder.tvStats.text = "点数: ${track.pointCount} | 时长: $durationStr | 最高速: ${maxSpeedKm} km/h"
@@ -94,7 +133,7 @@ class HistoryActivity : AppCompatActivity() {
             val minutes = seconds / 60
             val secs = seconds % 60
             return if (minutes > 0) {
-                "${minutes}分${minutes}秒"
+                "${minutes}分${secs}秒"
             } else {
                 "${secs}秒"
             }

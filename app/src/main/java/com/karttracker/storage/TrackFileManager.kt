@@ -47,8 +47,10 @@ class TrackFileManager(private val context: Context) {
         val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
         val startDate = dateFormat.parse(startTime)
         
-        val duration = if (points.size >= 2) {
-            ((points.last().timestamp - points.first().timestamp) * 1000).toLong()
+        val sortedPoints = points.sortedBy { it.timestamp }
+        
+        val duration = if (sortedPoints.size >= 2) {
+            ((sortedPoints.last().timestamp - sortedPoints.first().timestamp) * 1000).toLong()
         } else {
             0L
         }
@@ -56,19 +58,13 @@ class TrackFileManager(private val context: Context) {
         val endDate = startDate?.let { Date(it.time + duration) }
         val endTime = endDate?.let { dateFormat.format(it) } ?: startTime
         
-        val sortedPoints = points.sortedBy { it.timestamp }
-        
         return TrackData(
             fileName = file.name,
             filePath = file.absolutePath,
             startTime = startTime,
             endTime = endTime,
             pointCount = sortedPoints.size.toLong(),
-            duration = if (sortedPoints.size >= 2) {
-                ((sortedPoints.last().timestamp - sortedPoints.first().timestamp) * 1000).toLong()
-            } else {
-                0L
-            },
+            duration = duration,
             maxSpeed = sortedPoints.maxOfOrNull { it.speed } ?: 0f
         )
     }
@@ -93,12 +89,13 @@ class TrackFileManager(private val context: Context) {
         return points.sortedBy { it.timestamp }
     }
     
-    fun exportToGPX(filePath: String): String {
+    fun exportToGPX(filePath: String, onProgress: ((Int) -> Unit)? = null): String {
         val points = loadTrackPoints(filePath)
         if (points.isEmpty()) return ""
         
         val outputFile = File(filesDir, "export_${File(filePath).nameWithoutExtension}.gpx")
         val writer = FileWriter(outputFile)
+        val totalPoints = points.size
         
         writer.write("""<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="KartMotionTrack">
@@ -111,11 +108,16 @@ class TrackFileManager(private val context: Context) {
     <trkseg>
 """)
         
-        points.forEach { point ->
+        points.forEachIndexed { index, point ->
             writer.write("      <trkpt lat=\"${point.lat}\" lon=\"${point.lon}\">\n")
             writer.write("        <ele>${point.alt}</ele>\n")
             writer.write("        <speed>${point.speed}</speed>\n")
             writer.write("      </trkpt>\n")
+            
+            if (index % 100 == 0 || index == totalPoints - 1) {
+                val progress = ((index + 1).toFloat() / totalPoints * 100).toInt()
+                onProgress?.invoke(progress)
+            }
         }
         
         writer.write("""    </trkseg>
@@ -123,23 +125,31 @@ class TrackFileManager(private val context: Context) {
 </gpx>""")
         
         writer.close()
+        onProgress?.invoke(100)
         return outputFile.absolutePath
     }
     
-    fun exportToCSV(filePath: String): String {
+    fun exportToCSV(filePath: String, onProgress: ((Int) -> Unit)? = null): String {
         val points = loadTrackPoints(filePath)
         if (points.isEmpty()) return ""
         
         val outputFile = File(filesDir, "export_${File(filePath).nameWithoutExtension}.csv")
         val writer = FileWriter(outputFile)
+        val totalPoints = points.size
         
         writer.write("timestamp,lat,lon,alt,speed,accuracy,roll,pitch,yaw\n")
         
-        points.forEach { point ->
+        points.forEachIndexed { index, point ->
             writer.write("${point.timestamp},${point.lat},${point.lon},${point.alt},${point.speed},${point.accuracy},${point.roll},${point.pitch},${point.yaw}\n")
+            
+            if (index % 100 == 0 || index == totalPoints - 1) {
+                val progress = ((index + 1).toFloat() / totalPoints * 100).toInt()
+                onProgress?.invoke(progress)
+            }
         }
         
         writer.close()
+        onProgress?.invoke(100)
         return outputFile.absolutePath
     }
     
