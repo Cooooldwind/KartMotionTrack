@@ -12,6 +12,12 @@ import java.util.*
 class TrackFileManager(private val context: Context) {
     private val gson = Gson()
     private val filesDir = context.getExternalFilesDir(null)
+    private val gpxDateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
+        timeZone = TimeZone.getTimeZone("UTC")
+    }
+    private val timestampDateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
+        timeZone = TimeZone.getTimeZone("UTC")
+    }
     
     fun getAllTrackFiles(): List<TrackData> {
         val trackFiles = mutableListOf<TrackData>()
@@ -98,10 +104,13 @@ class TrackFileManager(private val context: Context) {
         val totalPoints = points.size
         
         writer.write("""<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="KartMotionTrack">
+<gpx version="1.1" creator="KartMotionTrack"
+  xmlns="http://www.topografix.com/GPX/1/1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
   <metadata>
     <name>${File(filePath).name}</name>
-    <time>${SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault()).format(Date())}</time>
+    <time>${gpxDateFormat.format(Date())}</time>
   </metadata>
   <trk>
     <name>Track</name>
@@ -111,7 +120,8 @@ class TrackFileManager(private val context: Context) {
         points.forEachIndexed { index, point ->
             writer.write("      <trkpt lat=\"${point.lat}\" lon=\"${point.lon}\">\n")
             writer.write("        <ele>${point.alt}</ele>\n")
-            writer.write("        <speed>${point.speed}</speed>\n")
+            val timestamp = Date((point.timestamp * 1000).toLong())
+            writer.write("        <time>${timestampDateFormat.format(timestamp)}</time>\n")
             writer.write("      </trkpt>\n")
             
             if (index % 100 == 0 || index == totalPoints - 1) {
