@@ -16,8 +16,7 @@ class TrackFileManager(private val context: Context) {
         val trackFiles = mutableListOf<TrackData>()
         
         filesDir?.listFiles { file ->
-            (file.name.startsWith("raw_track_") || file.name.startsWith("processed_") 
-            && file.name.endsWith(".json")
+            file.name.startsWith("raw_track_") || file.name.startsWith("processed_") && file.name.endsWith(".json")
         }?.forEach { file ->
             try {
                 if (file.name.startsWith("raw_track_")) {
