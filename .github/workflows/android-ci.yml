@@ -3,8 +3,16 @@ name: Android CI
 on:
   push:
     branches: [ main, develop ]
+    paths:
+      - 'app/**'
+      - '*.gradle*'
+      - '.github/workflows/android-ci.yml'
   pull_request:
     branches: [ main, develop ]
+    paths:
+      - 'app/**'
+      - '*.gradle*'
+      - '.github/workflows/android-ci.yml'
   workflow_dispatch:
 
 env:
@@ -14,8 +22,29 @@ env:
   GRADLE_VERSION: '8.2'
 
 jobs:
+  determine-run:
+    name: Check if build should run
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+      skip_reason: ${{ steps.check.outputs.skip_reason }}
+    steps:
+      - name: Check commit message for skip ci
+        id: check
+        run: |
+          if [[ "${{ github.event.head_commit.message }}" =~ "\[skip ci\]" ]] || \
+             [[ "${{ github.event.commits[0].message }}" =~ "\[skip ci\]" ]]; then
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            echo "skip_reason=Commit contains [skip ci]" >> $GITHUB_OUTPUT
+          else
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "skip_reason=" >> $GITHUB_OUTPUT
+          fi
+
   build:
     name: Build Debug APK
+    needs: determine-run
+    if: needs.determine-run.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     
     steps:
@@ -50,7 +79,7 @@ jobs:
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: app-debug-apk
+        name: app-debug-apk-${{ github.run_number }}
         path: app/build/outputs/apk/debug/app-debug.apk
         retention-days: 7
     
@@ -62,12 +91,14 @@ jobs:
       if: github.ref == 'refs/heads/main'
       uses: actions/upload-artifact@v4
       with:
-        name: app-release-apk
+        name: app-release-apk-${{ github.run_number }}
         path: app/build/outputs/apk/release/app-release.apk
         retention-days: 30
 
   test:
     name: Run Unit Tests
+    needs: determine-run
+    if: needs.determine-run.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     
     steps:
@@ -93,12 +124,14 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: test-reports
+        name: test-reports-${{ github.run_number }}
         path: app/build/reports/tests/testDebugUnitTest
         retention-days: 7
 
   lint:
     name: Run Lint Analysis
+    needs: determine-run
+    if: needs.determine-run.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     
     steps:
@@ -124,6 +157,15 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: lint-reports
+        name: lint-reports-${{ github.run_number }}
         path: app/build/reports/lint-results-debug.html
         retention-days: 7
+
+  skip-notification:
+    name: Skip Notification
+    needs: determine-run
+    if: needs.determine-run.outputs.should_run == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log skip reason
+        run: echo "Build skipped: ${{ needs.determine-run.outputs.skip_reason }}"
