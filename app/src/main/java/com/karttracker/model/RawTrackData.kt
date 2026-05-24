@@ -1,6 +1,6 @@
 package com.karttracker.model
 
-data class TrackData(
+data class RawTrackData(
     val fileName: String,
     val filePath: String,
     val startTime: String,
@@ -9,6 +9,5 @@ data class TrackData(
     val gpsPointCount: Int,
     val imuPointCount: Int,
     val isProcessed: Boolean = false,
-    val processedFilePath: String? = null,
-    val maxSpeed: Float = 0f
+    val processedFilePath: String? = null
 )

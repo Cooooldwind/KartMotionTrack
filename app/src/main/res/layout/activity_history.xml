@@ -1,37 +1,49 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
-
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerView"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:padding="8dp"/>
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
 
     <LinearLayout
+        android:id="@+id/progressLayout"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:gravity="center"
-        android:padding="16dp">
+        android:visibility="gone"
+        android:padding="8dp">
 
         <ProgressBar
             android:id="@+id/progressBar"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:indeterminate="true"
-            android:visibility="gone"/>
+            style="@android:style/Widget.ProgressBar.Horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="8dp"
+            android:max="100"/>
 
         <TextView
-            android:id="@+id/tvLoading"
-            android:layout_width="wrap_content"
+            android:id="@+id/tvProgress"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="正在加载..."
-            android:textSize="16sp"
-            android:layout_marginTop="16dp"
-            android:visibility="gone"/>
+            android:textSize="12sp"
+            android:gravity="center"
+            android:layout_marginTop="4dp"/>
 
     </LinearLayout>
 
-</RelativeLayout>
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvTracks"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+
+    <TextView
+        android:id="@+id/tvEmpty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="暂无轨迹"
+        android:textSize="18sp"
+        android:textColor="#888888"
+        android:layout_gravity="center"
+        android:visibility="gone"/>
+
+</LinearLayout>
