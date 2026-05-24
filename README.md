@@ -2,6 +2,16 @@
 
 基于 Android 的高性能卡丁车轨迹追踪应用，使用多传感器融合技术和 GPS 插值算法实现 100Hz 高频轨迹记录。
 
+## 📦 下载安装
+
+### 最新版本 (v1.3)
+[![GitHub Actions](https://img.shields.io/github/actions/workflow/status/Cooooldwind/KartMotionTrack/android-ci.yml?branch=main&label=Build&style=flat-square)](https://github.com/Cooooldwind/KartMotionTrack/actions)
+
+- **[下载 Debug APK (最新构建)](https://github.com/Cooooldwind/KartMotionTrack/actions)**
+  - 点击最新运行的 workflow
+  - 在 Artifacts 下载 `app-debug-apk-xxx`
+- **Release APK (仅 main 分支)** - 同样在 Actions 下载
+
 ## 🎯 功能特性
 
 - **100Hz 高频采样** - 传感器 100Hz 采样
@@ -9,6 +19,7 @@
 - **原始数据记录** - 先记录后处理，支持离线轨迹生成
 - **GPS Kalman 滤波** - 卡尔曼滤波平滑 GPS 信号
 - **自适应插值** - 根据传感器数据自动调整轨迹偏移
+- **轨迹可视化** - Canvas 绘制 2D 轨迹预览
 - **多格式导出** - 支持 GPX/CSV 格式导出
 - **简洁 UI** - 实时显示记录状态和统计信息
 
@@ -35,7 +46,8 @@ KartMotionTrack/
 │   │   ├── KartTracker.kt      # 主控制器
 │   │   ├── MainActivity.kt     # 主界面
 │   │   ├── HistoryActivity.kt  # 历史记录
-│   │   └── TrackDetailActivity.kt # 轨迹详情
+│   │   ├── TrackDetailActivity.kt # 轨迹详情 + 可视化
+│   │   └── TrackVisualizationView.kt # 轨迹自定义绘制
 │   └── res/                    # 资源文件
 └── docs/                       # 设计文档
 ```
@@ -67,7 +79,8 @@ KartMotionTrack/
 4. **停止追踪** - 点击"停止追踪"按钮
 5. **查看历史** - 点击"历史轨迹"查看所有记录
 6. **生成轨迹** - 点击"生成轨迹"进行离线处理
-7. **导出数据** - 处理后可导出 GPX 或 CSV 格式
+7. **查看轨迹** - 在详情页查看 2D 轨迹预览
+8. **导出数据** - 处理后可导出 GPX 或 CSV 格式
 
 ## 📊 数据格式
 
@@ -101,12 +114,12 @@ JSONL 格式，每行一个数据点：
 - 限制最大偏移量 ±2 米
 - 支持急转弯检测和修正
 
-### 离线后处理
+### 轨迹可视化
 
-- 读取原始 GPS 和 IMU 数据
-- Kalman 滤波平滑轨迹
-- 自适应插值生成高精度轨迹
-- 计算速度和距离统计
+- Canvas 自定义 2D 绘制
+- 自动缩放和平移
+- 起点（绿色）/ 终点（红色）标记
+- 网格背景辅助查看
 
 ## 📝 开发计划
 
@@ -117,7 +130,7 @@ JSONL 格式，每行一个数据点：
 - [x] GPS Kalman 滤波
 - [x] 自适应插值算法
 - [x] 数据导出（GPX、CSV）
-- [ ] 轨迹可视化
+- [x] 轨迹可视化
 - [ ] 赛道分析功能
 - [ ] 云端同步
 

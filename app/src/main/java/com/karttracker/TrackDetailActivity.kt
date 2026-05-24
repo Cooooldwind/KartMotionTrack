@@ -19,6 +19,7 @@ import kotlinx.coroutines.withContext
 import kotlin.math.*
 
 class TrackDetailActivity : AppCompatActivity() {
+    
     private lateinit var trackFileManager: TrackFileManager
     private lateinit var trackProcessor: TrackProcessor
     private lateinit var tvInfo: TextView
@@ -29,9 +30,11 @@ class TrackDetailActivity : AppCompatActivity() {
     private lateinit var progressLayout: LinearLayout
     private lateinit var progressBar: ProgressBar
     private lateinit var tvProgress: TextView
+    private lateinit var trackVisualization: TrackVisualizationView
     
     private var trackData: TrackData? = null
-    
+    private var processedPoints: List<TrackVisualizationView.TrackPointData> = emptyList()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_track_detail)
@@ -50,6 +53,7 @@ class TrackDetailActivity : AppCompatActivity() {
         progressLayout = findViewById(R.id.progressLayout)
         progressBar = findViewById(R.id.progressBar)
         tvProgress = findViewById(R.id.tvProgress)
+        trackVisualization = findViewById(R.id.trackVisualization)
         
         val filePath = intent.getStringExtra("filePath") ?: ""
         trackData = trackFileManager.getTrackStatus(filePath)
@@ -57,7 +61,7 @@ class TrackDetailActivity : AppCompatActivity() {
         updateUI()
         setupListeners()
     }
-    
+
     private fun updateUI() {
         val data = trackData ?: return
         
@@ -81,6 +85,9 @@ class TrackDetailActivity : AppCompatActivity() {
                 info.append("  距离: ${String.format("%.2f", distance)} 米\n")
                 info.append("  平均速度: ${String.format("%.2f", avgSpeed * 3.6)} km/h\n")
                 info.append("  最高速度: ${String.format("%.2f", data.maxSpeed * 3.6)} km/h\n")
+                
+                processedPoints = points.map { TrackVisualizationView.TrackPointData(it.lat, it.lon) }
+                trackVisualization.setTrackData(processedPoints)
             }
             
             btnGenerate.visibility = View.GONE
@@ -91,7 +98,9 @@ class TrackDetailActivity : AppCompatActivity() {
             info.append("  GPS点数: ${data.gpsPointCount}\n")
             info.append("  IMU点数: ${data.imuPointCount}\n\n")
             info.append("状态: 未处理\n")
-            info.append("提示: 点击「生成轨迹」进行后处理")
+            info.append("提示: 点击「生成轨迹」进行离线处理")
+            
+            trackVisualization.setTrackData(emptyList())
             
             btnGenerate.visibility = View.VISIBLE
             btnExportGPX.visibility = View.GONE
@@ -100,7 +109,7 @@ class TrackDetailActivity : AppCompatActivity() {
         
         tvInfo.text = info.toString()
     }
-    
+
     private fun setupListeners() {
         btnGenerate.setOnClickListener {
             generateTrack()
@@ -118,7 +127,7 @@ class TrackDetailActivity : AppCompatActivity() {
             deleteTrack()
         }
     }
-    
+
     private fun generateTrack() {
         val data = trackData ?: return
         
@@ -146,7 +155,7 @@ class TrackDetailActivity : AppCompatActivity() {
             }
         }
     }
-    
+
     private fun exportGPX() {
         val data = trackData ?: return
         val processedPath = data.processedFilePath ?: return
@@ -172,7 +181,7 @@ class TrackDetailActivity : AppCompatActivity() {
             }
         }
     }
-    
+
     private fun exportCSV() {
         val data = trackData ?: return
         val processedPath = data.processedFilePath ?: return
@@ -198,7 +207,7 @@ class TrackDetailActivity : AppCompatActivity() {
             }
         }
     }
-    
+
     private fun deleteTrack() {
         val data = trackData ?: return
         if (trackFileManager.deleteTrackFile(data.filePath)) {
@@ -208,29 +217,29 @@ class TrackDetailActivity : AppCompatActivity() {
             Toast.makeText(this, "删除失败", Toast.LENGTH_SHORT).show()
         }
     }
-    
+
     private fun showProgressDialog(message: String) {
         tvProgress.text = message
         progressBar.progress = 0
         progressLayout.visibility = View.VISIBLE
     }
-    
+
     private fun updateProgress(phase: String, progress: Int) {
         tvProgress.text = "$phase ($progress%)"
         progressBar.progress = progress
     }
-    
+
     private fun dismissProgressDialog() {
         progressLayout.visibility = View.GONE
     }
-    
+
     private fun formatDuration(millis: Long): String {
         val seconds = millis / 1000
         val minutes = seconds / 60
         val secs = seconds % 60
         return if (minutes > 0) "${minutes}分${secs}秒" else "${secs}秒"
     }
-    
+
     private fun calculateDistance(points: List<com.karttracker.model.TrackPoint>): Double {
         var distance = 0.0
         for (i in 1 until points.size) {
@@ -241,17 +250,17 @@ class TrackDetailActivity : AppCompatActivity() {
         }
         return distance
     }
-    
+
     private fun haversine(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
         val R = 6371000.0
         val dLat = Math.toRadians(lat2 - lat1)
         val dLon = Math.toRadians(lon2 - lon1)
-        val a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
-                Math.sin(dLon/2) * Math.sin(dLon/2)
-        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+        val a = sin(dLat/2).pow(2) +
+                cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) *
+                sin(dLon/2).pow(2)
+        return R * 2 * atan2(sqrt(a), sqrt(1-a))
     }
-    
+
     override fun onSupportNavigateUp(): Boolean {
         onBackPressed()
         return true

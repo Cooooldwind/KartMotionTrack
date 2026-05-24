@@ -3,19 +3,51 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="8dp">
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginBottom="8dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="轨迹预览"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:padding="8dp"
+                android:background="#E3F2FD"/>
+
+            <com.karttracker.TrackVisualizationView
+                android:id="@+id/trackVisualization"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:background="#F5F5F5"/>
+
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
 
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1">
+        android:layout_weight="0.6">
 
         <TextView
             android:id="@+id/tvInfo"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="16sp"
-            android:lineSpacingExtra="4dp"/>
+            android:textSize="14sp"
+            android:lineSpacingExtra="3dp"
+            android:padding="8dp"/>
 
     </ScrollView>
 
@@ -48,7 +80,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:paddingTop="16dp">
+        android:paddingTop="8dp">
 
         <Button
             android:id="@+id/btnGenerate"
