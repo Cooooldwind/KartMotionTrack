@@ -134,14 +134,14 @@ class TrackVisualizationView @JvmOverloads constructor(
         val gridStep = 0.0005
         var x = left
         while (x < right) {
-            val px = (x - bounds.left) * scale + offset[0]
+            val px = ((x - bounds.left) * scale + offset[0]).toFloat()
             canvas.drawLine(px, 0f, px, height.toFloat(), gridPaint)
             x += gridStep
         }
 
         var y = bottom
         while (y < top) {
-            val py = (y - bounds.bottom) * scale + offset[1]
+            val py = ((y - bounds.bottom) * scale + offset[1]).toFloat()
             canvas.drawLine(0f, py, width.toFloat(), py, gridPaint)
             y += gridStep
         }
@@ -154,8 +154,8 @@ class TrackVisualizationView @JvmOverloads constructor(
         val path = Path()
 
         for ((index, point) in trackPoints.withIndex()) {
-            val x = (point.lon - bounds.left) * scale + offset[0]
-            val y = (point.lat - bounds.bottom) * scale + offset[1]
+            val x = ((point.lon - bounds.left) * scale + offset[0]).toFloat()
+            val y = ((point.lat - bounds.bottom) * scale + offset[1]).toFloat()
 
             if (index == 0) {
                 path.moveTo(x, y)
@@ -173,13 +173,13 @@ class TrackVisualizationView @JvmOverloads constructor(
         val bounds = calculateBounds()
 
         val startPoint = trackPoints.first()
-        val startX = (startPoint.lon - bounds.left) * scale + offset[0]
-        val startY = (startPoint.lat - bounds.bottom) * scale + offset[1]
+        val startX = ((startPoint.lon - bounds.left) * scale + offset[0]).toFloat()
+        val startY = ((startPoint.lat - bounds.bottom) * scale + offset[1]).toFloat()
         canvas.drawCircle(startX, startY, 12f, startMarkerPaint)
 
         val endPoint = trackPoints.last()
-        val endX = (endPoint.lon - bounds.left) * scale + offset[0]
-        val endY = (endPoint.lat - bounds.bottom) * scale + offset[1]
+        val endX = ((endPoint.lon - bounds.left) * scale + offset[0]).toFloat()
+        val endY = ((endPoint.lat - bounds.bottom) * scale + offset[1]).toFloat()
         canvas.drawCircle(endX, endY, 12f, endMarkerPaint)
     }
 
