@@ -29,6 +29,9 @@ jobs:
     name: Build and Test
     runs-on: ubuntu-latest
     
+    outputs:
+      version_name: ${{ steps.version.outputs.VERSION_NAME }}
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -54,6 +57,12 @@ jobs:
         key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
         restore-keys: |
           ${{ runner.os }}-gradle-
+    
+    - name: Get Version Info
+      id: version
+      run: |
+        VERSION_NAME=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
+        echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_OUTPUT
     
     - name: Build Debug APK
       run: gradle assembleDebug --no-daemon --stacktrace
@@ -117,12 +126,15 @@ jobs:
         name: app-release-apk
         path: ./release
     
-    - name: Generate Release Notes
-      id: release_info
+    - name: Get Version Info
+      id: version
       run: |
         VERSION_NAME=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
         echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_OUTPUT
-        
+        echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
+    
+    - name: Generate Release Notes
+      run: |
         CHANGELOG=$(git log --oneline -10)
         
         cat > release_notes.md << 'RELEASE_EOF'
@@ -143,6 +155,7 @@ jobs:
         
         sed -i "s/\${VERSION_NAME}/$VERSION_NAME/g" release_notes.md
         sed -i "s/\${CHANGELOG}/$CHANGELOG/g" release_notes.md
+        cat release_notes.md
     
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
@@ -152,59 +165,14 @@ jobs:
         prerelease: false
         files: |
           ./release/app-release.apk
-        tag_name: v${{ steps.release_info.outputs.VERSION_NAME }}
-        release_name: KartMotionTrack v${{ steps.release_info.outputs.VERSION_NAME }}
+        tag_name: v${{ env.VERSION_NAME }}
+        release_name: KartMotionTrack v${{ env.VERSION_NAME }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  packages:
-    name: Publish to GitHub Packages
-    needs: build
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Download Release APK
-      uses: actions/download-artifact@v4
-      with:
-        name: app-release-apk
-        path: ./release
-    
-    - name: Get Version Info
-      id: version
-      run: |
-        VERSION_NAME=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
-        echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_OUTPUT
-    
-    - name: Create Package Version
-      env:
-        VERSION_NAME: ${{ steps.version.outputs.VERSION_NAME }}
-      run: |
-        echo "GitHub Packages Publishing"
-        echo "========================="
-        echo "Package: KartMotionTrack"
-        echo "Version: $VERSION_NAME"
-        echo "Repository: ${{ github.repository }}"
-        echo ""
-        echo "APK Location: ./release/app-release.apk"
-        echo ""
-        echo "Note: GitHub Packages is primarily for libraries. For APK distribution,"
-        echo "we use GitHub Releases instead."
-        echo ""
-        echo "For Android library (.aar) publishing to GitHub Packages:"
-        echo "1. Configure maven-publish plugin"
-        echo "2. Set up package registration"
-        echo "3. Publish using gradle publish task"
-
   summary:
     name: Build Summary
-    needs: [build, release, packages]
+    needs: [build, release]
     if: always()
     runs-on: ubuntu-latest
     
@@ -216,7 +184,6 @@ jobs:
         echo "## Build Status"
         echo "- Build: ${{ needs.build.result }}"
         echo "- Release: ${{ needs.release.result }}"
-        echo "- Packages: ${{ needs.packages.result }}"
         echo ""
         echo "## Version Info"
         echo "- Version Name: v1.3"
@@ -228,5 +195,5 @@ jobs:
         echo ""
         if [ "${{ github.ref }}" == "refs/heads/main" ]; then
           echo "## GitHub Release"
-          echo "- Created: https://github.com/${{ github.repository }}/releases"
+          echo "- URL: https://github.com/${{ github.repository }}/releases"
         fi
