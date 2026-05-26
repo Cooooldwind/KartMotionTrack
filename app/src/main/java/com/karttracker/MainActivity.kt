@@ -23,6 +23,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnStart: Button
     private lateinit var btnStop: Button
     private lateinit var btnHistory: Button
+    private lateinit var btnHelp: Button
+    private lateinit var btnSettings: Button
     
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -69,6 +71,8 @@ class MainActivity : AppCompatActivity() {
         btnStart = findViewById(R.id.btnStart)
         btnStop = findViewById(R.id.btnStop)
         btnHistory = findViewById(R.id.btnHistory)
+        btnHelp = findViewById(R.id.btnHelp)
+        btnSettings = findViewById(R.id.btnSettings)
     }
     
     private fun initTracker() {
@@ -77,8 +81,17 @@ class MainActivity : AppCompatActivity() {
         kartTracker.onStatusUpdate = { status ->
             try {
                 tvStatus.text = status
+                updateButtonStates()
             } catch (e: Exception) {
                 e.printStackTrace()
+            }
+        }
+        
+        kartTracker.onGPSLockObtained = {
+            runOnUiThread {
+                btnStart.isEnabled = false
+                btnStop.isEnabled = true
+                tvStats.visibility = TextView.GONE
             }
         }
     }
@@ -96,6 +109,21 @@ class MainActivity : AppCompatActivity() {
             val intent = Intent(this, HistoryActivity::class.java)
             startActivity(intent)
         }
+        
+        btnHelp.setOnClickListener {
+            val intent = Intent(this, HelpActivity::class.java)
+            startActivity(intent)
+        }
+        
+        btnSettings.setOnClickListener {
+            val intent = Intent(this, SettingsActivity::class.java)
+            startActivity(intent)
+        }
+    }
+    
+    private fun updateButtonStates() {
+        btnStart.isEnabled = !kartTracker.isWaiting() && !kartTracker.isRecording()
+        btnStop.isEnabled = kartTracker.isWaiting() || kartTracker.isRecording()
     }
     
     private fun checkPermissionsAndStart() {
@@ -124,18 +152,18 @@ class MainActivity : AppCompatActivity() {
     
     private fun startTracking() {
         kartTracker.start()
-        btnStart.isEnabled = false
-        btnStop.isEnabled = true
+        updateButtonStates()
         tvStats.visibility = TextView.GONE
     }
     
     private fun stopTracking() {
         val stats = kartTracker.stop()
-        btnStart.isEnabled = true
-        btnStop.isEnabled = false
+        updateButtonStates()
         
-        tvStats.text = "本次记录: GPS ${stats.gpsPoints}点, IMU ${stats.imuPoints}点, 时长 ${formatDuration(stats.duration)}"
-        tvStats.visibility = TextView.VISIBLE
+        if (stats.gpsPoints > 0) {
+            tvStats.text = "本次记录: GPS ${stats.gpsPoints}点, IMU ${stats.imuPoints}点, 时长 ${formatDuration(stats.duration)}"
+            tvStats.visibility = TextView.VISIBLE
+        }
     }
     
     private fun formatDuration(millis: Long): String {

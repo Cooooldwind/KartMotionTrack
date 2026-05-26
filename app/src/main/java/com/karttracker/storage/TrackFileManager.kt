@@ -118,7 +118,7 @@ class TrackFileManager(private val context: Context) {
         val outputFile = File(filesDir, "export_${File(filePath).nameWithoutExtension}.gpx")
         val writer = outputFile.bufferedWriter()
         val totalPoints = points.size
-        val gpxDateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
+        val gpxDateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
             timeZone = TimeZone.getTimeZone("UTC")
         }
         

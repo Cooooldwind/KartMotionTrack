@@ -22,8 +22,100 @@ env:
   GRADLE_VERSION: '8.2'
 
 jobs:
-  build:
-    name: Build and Test
+  check-build-type:
+    name: Check Build Type
+    runs-on: ubuntu-latest
+    outputs:
+      build_type: ${{ steps.check.outputs.build_type }}
+      should_build: ${{ steps.check.outputs.should_build }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Check commit message
+      id: check
+      run: |
+        COMMIT_MSG="${{ github.event.head_commit.message }}"
+        echo "Commit message: $COMMIT_MSG"
+        
+        if echo "$COMMIT_MSG" | grep -qi "\[debug\]"; then
+          echo "build_type=debug" >> $GITHUB_OUTPUT
+          echo "should_build=true" >> $GITHUB_OUTPUT
+          echo "Building debug APK"
+        elif echo "$COMMIT_MSG" | grep -qi "\[release\]"; then
+          echo "build_type=release" >> $GITHUB_OUTPUT
+          echo "should_build=true" >> $GITHUB_OUTPUT
+          echo "Building release APK"
+        else
+          echo "build_type=none" >> $GITHUB_OUTPUT
+          echo "should_build=false" >> $GITHUB_OUTPUT
+          echo "Skipping build (no [debug] or [release] tag)"
+        fi
+
+  build-debug:
+    name: Build Debug APK
+    needs: check-build-type
+    if: needs.check-build-type.outputs.should_build == 'true' && needs.check-build-type.outputs.build_type == 'debug'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+        cache: 'gradle'
+    
+    - name: Setup Gradle
+      uses: gradle/gradle-build-action@v2
+      with:
+        gradle-version: ${{ env.GRADLE_VERSION }}
+    
+    - name: Cache Gradle packages
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+    
+    - name: Generate debug keystore
+      run: |
+        mkdir -p ~/.android
+        if [ ! -f ~/.android/debug.keystore ]; then
+          echo "Generating debug.keystore..."
+          keytool -genkeypair -v -keystore ~/.android/debug.keystore \
+            -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass android -keypass android \
+            -dname "CN=Android Debug,O=Android,C=US"
+        fi
+        ls -la ~/.android/
+    
+    - name: Build Debug APK
+      run: gradle assembleDebug --no-daemon --stacktrace
+    
+    - name: Upload Debug APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: KartMotionTrack-debug
+        path: app/build/outputs/apk/debug/app-debug.apk
+        retention-days: 30
+    
+    - name: Run Unit Tests
+      run: gradle test --no-daemon
+    
+    - name: Run Lint
+      run: gradle lint --no-daemon
+
+  build-release:
+    name: Build Release APK
+    needs: check-build-type
+    if: needs.check-build-type.outputs.should_build == 'true' && needs.check-build-type.outputs.build_type == 'release'
     runs-on: ubuntu-latest
     
     steps:
@@ -70,35 +162,19 @@ jobs:
     - name: Upload Release APK
       uses: actions/upload-artifact@v4
       with:
-        name: KartMotionTrack
+        name: KartMotionTrack-release
         path: app/build/outputs/apk/release/app-release.apk
         retention-days: 30
     
     - name: Run Unit Tests
       run: gradle test --no-daemon
     
-    - name: Upload test reports
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-reports
-        path: app/build/reports/tests/testDebugUnitTest
-        retention-days: 7
-    
     - name: Run Lint
       run: gradle lint --no-daemon
-    
-    - name: Upload lint reports
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: lint-reports
-        path: app/build/reports/lint-results-debug.html
-        retention-days: 7
 
   release:
     name: Create GitHub Release
-    needs: build
+    needs: build-release
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
@@ -111,7 +187,7 @@ jobs:
     - name: Download Release APK
       uses: actions/download-artifact@v4
       with:
-        name: KartMotionTrack
+        name: KartMotionTrack-release
         path: ./release
     
     - name: Verify APK exists
@@ -141,15 +217,16 @@ jobs:
         VERSION_NAME="${{ steps.version.outputs.VERSION_NAME }}"
         VERSION_CODE="${{ steps.version.outputs.VERSION_CODE }}"
         CHANGELOG=$(git log --oneline -10)
+        CODE_BLOCK="\`\`\`"
         
         {
           echo "## Changes in v${VERSION_NAME}"
           echo ""
           echo "### Commits"
           echo ""
-          echo "\`\`\`bash"
+          echo "${CODE_BLOCK}bash"
           echo "${CHANGELOG}"
-          echo "\`\`\`"
+          echo "${CODE_BLOCK}"
           echo ""
           echo "### Downloads"
           echo "- **KartMotionTrack-v${VERSION_NAME}.apk**: Ready to install"
@@ -180,27 +257,18 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  summary:
-    name: Build Summary
-    needs: [build, release]
-    if: always()
+  skip-notification:
+    name: Build Skipped
+    needs: check-build-type
+    if: needs.check-build-type.outputs.should_build == 'false'
     runs-on: ubuntu-latest
     
     steps:
-    - name: Summary
+    - name: Skip notification
       run: |
-        echo "# KartMotionTrack CI/CD Summary"
+        echo "Build skipped - no [debug] or [release] tag found in commit message"
+        echo "To trigger a build, include [debug] or [release] in your commit message"
         echo ""
-        echo "## Build Status"
-        echo "| Job | Status |"
-        echo "|-----|--------|"
-        echo "| Build | ${{ needs.build.result }} |"
-        echo "| Release | ${{ needs.release.result }} |"
-        echo ""
-        echo "## Artifacts"
-        echo "- Release APK: 30 days retention"
-        echo ""
-        if [ "${{ github.ref }}" == "refs/heads/main" ]; then
-          echo "## GitHub Release"
-          echo "- Created: https://github.com/${{ github.repository }}/releases"
-        fi
+        echo "Examples:"
+        echo "- 'feat: add new feature [debug]'"
+        echo "- 'fix: bug fix [release]'"

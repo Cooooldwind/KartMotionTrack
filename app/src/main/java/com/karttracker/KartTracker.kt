@@ -10,7 +10,6 @@ import com.karttracker.sensors.IMUSampler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -22,11 +21,14 @@ class KartTracker(private val context: Context) {
     private val gpsCollector = GPSCollector(context)
     private val rawDataWriter = RawDataWriter(context)
     
-    private var isRunning = false
+    private var isWaitingForGPS = false
+    private var hasGPSLock = false
+    private var isRecording = false
     private var gpsPointCount = 0
     private var imuPointCount = 0
     
     var onStatusUpdate: ((String) -> Unit)? = null
+    var onGPSLockObtained: (() -> Unit)? = null
     
     data class RecordStats(
         val gpsPoints: Int,
@@ -38,39 +40,48 @@ class KartTracker(private val context: Context) {
     private var startTimeMillis: Long = 0
     
     fun start() {
-        if (isRunning) return
+        if (isRecording || isWaitingForGPS) return
         
-        Log.d(TAG, "开始追踪（记录原始数据）")
+        Log.d(TAG, "等待GPS锁定...")
         
         gpsPointCount = 0
         imuPointCount = 0
-        startTimestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        startTimeMillis = System.currentTimeMillis()
+        hasGPSLock = false
+        isWaitingForGPS = true
         
-        rawDataWriter.start(startTimestamp)
-        
-        isRunning = true
-        
-        imuSampler.addListener { onIMUData(it) }
-        gpsCollector.addListener { onGPSData(it) }
-        
-        imuSampler.startSampling()
+        gpsCollector.addListener { onGPSForLock(it) }
         gpsCollector.start()
         
-        updateStatus("正在记录数据...")
+        updateStatus("等待GPS锁定...")
     }
     
     fun stop(): RecordStats {
-        if (!isRunning) return RecordStats(0, 0, 0)
+        if (!isRecording && !isWaitingForGPS) {
+            return RecordStats(0, 0, 0)
+        }
+        
+        if (isWaitingForGPS) {
+            Log.d(TAG, "取消等待GPS锁定")
+            isWaitingForGPS = false
+            gpsCollector.removeListener { onGPSForLock(it) }
+            gpsCollector.stop()
+            updateStatus("准备就绪")
+            return RecordStats(0, 0, 0)
+        }
+        
+        if (gpsPointCount == 0) {
+            Log.w(TAG, "没有GPS数据，无法停止")
+            updateStatus("没有GPS数据，无法停止")
+            return RecordStats(0, 0, 0)
+        }
         
         Log.d(TAG, "停止追踪")
         
-        isRunning = false
+        isRecording = false
         
         imuSampler.stopSampling()
         gpsCollector.stop()
         
-        val file = rawDataWriter.close()
         val duration = System.currentTimeMillis() - startTimeMillis
         
         val stats = RecordStats(gpsPointCount, imuPointCount, duration)
@@ -79,10 +90,41 @@ class KartTracker(private val context: Context) {
         return stats
     }
     
-    fun isRunning(): Boolean = isRunning
+    fun isWaiting(): Boolean = isWaitingForGPS
+    
+    fun isRecording(): Boolean = isRecording
+    
+    private fun onGPSForLock(data: GPSData) {
+        if (!isWaitingForGPS) return
+        
+        if (data.accuracy > 100f) {
+            updateStatus("GPS精度不足，等待中...")
+            return
+        }
+        
+        Log.d(TAG, "GPS锁定成功，开始记录")
+        isWaitingForGPS = false
+        hasGPSLock = true
+        
+        startTimestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+        startTimeMillis = System.currentTimeMillis()
+        
+        rawDataWriter.start(startTimestamp)
+        
+        isRecording = true
+        
+        gpsCollector.removeListener { onGPSForLock(it) }
+        gpsCollector.addListener { onGPSData(it) }
+        
+        imuSampler.addListener { onIMUData(it) }
+        imuSampler.startSampling()
+        
+        onGPSLockObtained?.invoke()
+        updateStatus("正在记录: GPS 0点, IMU 0点")
+    }
     
     private fun onIMUData(data: IMUData) {
-        if (!isRunning) return
+        if (!isRecording) return
         
         rawDataWriter.writeIMU(
             timestamp = data.timestamp,
@@ -97,10 +139,12 @@ class KartTracker(private val context: Context) {
             magZ = data.magZ
         )
         imuPointCount++
+        
+        updateStatus("正在记录: GPS ${gpsPointCount}点, IMU ${imuPointCount}点")
     }
     
     private fun onGPSData(data: GPSData) {
-        if (!isRunning) return
+        if (!isRecording) return
         
         if (data.accuracy > 100f) {
             Log.w(TAG, "GPS精度太差，忽略")
@@ -128,8 +172,12 @@ class KartTracker(private val context: Context) {
     }
     
     fun destroy() {
-        if (isRunning) {
+        if (isRecording) {
             stop()
+        }
+        if (isWaitingForGPS) {
+            isWaitingForGPS = false
+            gpsCollector.stop()
         }
     }
 }
