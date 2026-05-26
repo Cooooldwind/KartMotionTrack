@@ -63,6 +63,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="开始追踪"
+            android:textSize="16sp"
             android:layout_marginEnd="8dp"
             app:icon="@android:drawable/ic_media_play" />
 
@@ -72,6 +73,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="停止追踪"
+            android:textSize="16sp"
             android:layout_marginStart="8dp"
             android:enabled="false"
             app:icon="@android:drawable/ic_media_pause" />
@@ -90,6 +92,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="历史轨迹"
+            android:textSize="16sp"
             app:icon="@android:drawable/ic_menu_recent_history" />
 
     </LinearLayout>
@@ -111,6 +114,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="帮助"
+            android:textSize="14sp"
             app:icon="@android:drawable/ic_menu_help" />
 
         <View
@@ -123,6 +127,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="设置"
+            android:textSize="14sp"
             app:icon="@android:drawable/ic_menu_preferences" />
 
     </LinearLayout>
