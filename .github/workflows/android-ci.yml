@@ -141,15 +141,16 @@ jobs:
         VERSION_NAME="${{ steps.version.outputs.VERSION_NAME }}"
         VERSION_CODE="${{ steps.version.outputs.VERSION_CODE }}"
         CHANGELOG=$(git log --oneline -10)
+        CODE_BLOCK="\`\`\`"
         
         cat > release_notes.md << EOF
 ## Changes in v${VERSION_NAME}
 
 ### Commits
 
-\`\`\`bash
+${CODE_BLOCK}bash
 ${CHANGELOG}
-\`\`\`
+${CODE_BLOCK}
 
 ### Downloads
 - **KartMotionTrack-v${VERSION_NAME}.apk**: Ready to install
