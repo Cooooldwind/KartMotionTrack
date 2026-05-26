@@ -54,15 +54,30 @@ class AdaptiveInterpolation(
         val duration = endTime - startTime
         
         val totalPoints = (duration * targetRateHz).toInt()
+        if (totalPoints < 2) return result
+        
         val interval = duration / totalPoints
+        
+        val sortedIMU = imuPoints.filter { it.type == com.karttracker.model.DataType.IMU }
+            .sortedBy { it.timestamp }
+        
+        val imuTimestamps = sortedIMU.map { it.timestamp }.toDoubleArray()
         
         for (i in 0 until totalPoints) {
             val t = startTime + i * interval
-            val (lat, lon, alt, speed, bearing, accuracy) = interpolateAtTime(
-                t, validGPS, imuPoints
-            )
             
-            val rollPitchYaw = calculateOrientation(t, imuPoints)
+            val gpsIndex = findGPSIndex(t, validGPS)
+            val before = validGPS[gpsIndex]
+            val after = if (gpsIndex + 1 < validGPS.size) validGPS[gpsIndex + 1] else before
+            
+            val (lat, lon, alt, speed, bearing, accuracy) = if (before.timestamp == after.timestamp) {
+                val (fLat, fLon) = kalmanFilter.process(before.lat, before.lon, before.accuracy)
+                InterpolatedData(fLat, fLon, 0.0, before.speed, before.bearing, before.accuracy)
+            } else {
+                interpolateBetweenGPS(t, before, after, sortedIMU, imuTimestamps)
+            }
+            
+            val rollPitchYaw = calculateOrientationFast(t, sortedIMU, imuTimestamps)
             
             result.add(TrackPoint(
                 timestamp = t,
@@ -80,22 +95,59 @@ class AdaptiveInterpolation(
         return result
     }
     
-    private fun interpolateAtTime(
-        t: Double,
-        gpsPoints: List<GPSPoint>,
-        imuPoints: List<RawDataPoint>
-    ): InterpolatedData {
-        val before = gpsPoints.filter { it.timestamp <= t }.lastOrNull()
-        val after = gpsPoints.filter { it.timestamp >= t }.firstOrNull()
+    private fun findGPSIndex(t: Double, gpsPoints: List<GPSPoint>): Int {
+        var low = 0
+        var high = gpsPoints.size - 1
         
-        if (before == null || after == null || before.timestamp == after.timestamp) {
-            if (before != null) {
-                val (fLat, fLon) = kalmanFilter.process(before.lat, before.lon, before.accuracy)
-                return InterpolatedData(fLat, fLon, 0.0, before.speed, before.bearing, before.accuracy)
+        while (low < high) {
+            val mid = (low + high + 1) / 2
+            if (gpsPoints[mid].timestamp <= t) {
+                low = mid
+            } else {
+                high = mid - 1
             }
-            return InterpolatedData(0.0, 0.0, 0.0, 0f, 0f, 100f)
+        }
+        return low
+    }
+    
+    private fun findIMURange(startTime: Double, endTime: Double, timestamps: DoubleArray): Pair<Int, Int> {
+        var startIdx = 0
+        var endIdx = timestamps.size
+        
+        var low = 0
+        var high = timestamps.size - 1
+        while (low <= high) {
+            val mid = (low + high) / 2
+            if (timestamps[mid] >= startTime) {
+                startIdx = mid
+                high = mid - 1
+            } else {
+                low = mid + 1
+            }
         }
         
+        low = startIdx
+        high = timestamps.size - 1
+        while (low <= high) {
+            val mid = (low + high) / 2
+            if (timestamps[mid] <= endTime) {
+                endIdx = mid + 1
+                low = mid + 1
+            } else {
+                high = mid - 1
+            }
+        }
+        
+        return Pair(startIdx, endIdx)
+    }
+    
+    private fun interpolateBetweenGPS(
+        t: Double,
+        before: GPSPoint,
+        after: GPSPoint,
+        imuPoints: List<RawDataPoint>,
+        imuTimestamps: DoubleArray
+    ): InterpolatedData {
         val progress = ((t - before.timestamp) / (after.timestamp - before.timestamp)).toFloat()
         
         var lat = lerp(before.lat, after.lat, progress)
@@ -104,7 +156,7 @@ class AdaptiveInterpolation(
         val speed = lerp(before.speed, after.speed, progress)
         val bearing = lerpAngle(before.bearing, after.bearing, progress)
         
-        val lateralOffset = calculateLateralOffset(t, before.timestamp, after.timestamp, imuPoints)
+        val lateralOffset = calculateLateralOffsetFast(before.timestamp, after.timestamp, imuPoints, imuTimestamps)
         if (abs(lateralOffset) > 0.01) {
             val bearingRad = Math.toRadians(bearing.toDouble())
             val lateralBearing = bearingRad + Math.PI / 2
@@ -119,22 +171,20 @@ class AdaptiveInterpolation(
         return InterpolatedData(fLat, fLon, alt.toDouble(), speed, bearing, before.accuracy)
     }
     
-    private fun calculateLateralOffset(
-        t: Double,
+    private fun calculateLateralOffsetFast(
         startTime: Double,
         endTime: Double,
-        imuPoints: List<RawDataPoint>
+        imuPoints: List<RawDataPoint>,
+        imuTimestamps: DoubleArray
     ): Double {
-        val relevantIMU = imuPoints.filter { 
-            it.timestamp >= startTime && it.timestamp <= endTime 
-        }
-        
-        if (relevantIMU.isEmpty()) return 0.0
+        val range = findIMURange(startTime, endTime, imuTimestamps)
+        if (range.first >= range.second) return 0.0
         
         var totalOffset = 0.0
         var prevTime = startTime
         
-        for (imu in relevantIMU) {
+        for (i in range.first until range.second) {
+            val imu = imuPoints[i]
             val dt = imu.timestamp - prevTime
             if (dt > 0 && dt < 0.1) {
                 val accelY = imu.accelY?.toDouble() ?: 0.0
@@ -149,22 +199,39 @@ class AdaptiveInterpolation(
         return totalOffset
     }
     
-    private fun calculateOrientation(
+    private fun calculateOrientationFast(
         t: Double,
-        imuPoints: List<RawDataPoint>
+        imuPoints: List<RawDataPoint>,
+        imuTimestamps: DoubleArray
     ): FloatArray {
-        val nearby = imuPoints.filter { 
-            abs(it.timestamp - t) < 0.05 
+        val idx = imuTimestamps.binarySearch(t)
+        val searchIdx = if (idx < 0) -idx - 1 else idx
+        
+        val startIdx = max(0, searchIdx - 5)
+        val endIdx = min(imuPoints.size, searchIdx + 5)
+        
+        if (startIdx >= endIdx) return floatArrayOf(0f, 0f, 0f)
+        
+        var sumAccelX = 0.0
+        var sumAccelY = 0.0
+        var sumAccelZ = 0.0
+        var count = 0
+        
+        for (i in startIdx until endIdx) {
+            val imu = imuPoints[i]
+            imu.accelX?.let { sumAccelX += it; count++ }
+            imu.accelY?.let { sumAccelY += it }
+            imu.accelZ?.let { sumAccelZ += it }
         }
         
-        if (nearby.isEmpty()) return floatArrayOf(0f, 0f, 0f)
+        if (count == 0) return floatArrayOf(0f, 0f, 0f)
         
-        val avgAccelX = nearby.mapNotNull { it.accelX }.average().toFloat()
-        val avgAccelY = nearby.mapNotNull { it.accelY }.average().toFloat()
-        val avgAccelZ = nearby.mapNotNull { it.accelZ }.average().toFloat()
+        val avgAccelX = (sumAccelX / count).toFloat()
+        val avgAccelY = (sumAccelY / count).toFloat()
+        val avgAccelZ = (sumAccelZ / count).toFloat()
         
-        val pitch = Math.toDegrees(atan2(-avgAccelX, sqrt(avgAccelY * avgAccelY + avgAccelZ * avgAccelZ)).toDouble()).toFloat()
-        val roll = Math.toDegrees(atan2(avgAccelY, avgAccelZ).toDouble()).toFloat()
+        val pitch = Math.toDegrees(atan2(-avgAccelX.toDouble(), sqrt(avgAccelY * avgAccelY + avgAccelZ * avgAccelZ).toDouble())).toFloat()
+        val roll = Math.toDegrees(atan2(avgAccelY.toDouble(), avgAccelZ.toDouble())).toFloat()
         
         return floatArrayOf(roll, pitch, 0f)
     }

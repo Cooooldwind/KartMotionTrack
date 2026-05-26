@@ -59,7 +59,12 @@ class TrackProcessor(private val context: Context) {
             
             onProgress?.invoke(ProcessProgress("处理GPS Kalman滤波", 20, 0, gpsPoints.size))
             
-            onProgress?.invoke(ProcessProgress("生成100Hz轨迹点", 40, 0, 0))
+            val firstTime = gpsPoints.firstOrNull()?.timestamp ?: 0.0
+            val lastTime = gpsPoints.lastOrNull()?.timestamp ?: 0.0
+            val totalDuration = lastTime - firstTime
+            val trackPointsToGenerate = (totalDuration * 100).toInt()
+            
+            onProgress?.invoke(ProcessProgress("生成100Hz轨迹点", 40, 0, trackPointsToGenerate))
             
             val trackPoints = interpolation.interpolate(gpsPoints, imuPoints)
             
@@ -72,7 +77,7 @@ class TrackProcessor(private val context: Context) {
                 )
             }
             
-            onProgress?.invoke(ProcessProgress("保存轨迹文件", 80, 0, trackPoints.size))
+            onProgress?.invoke(ProcessProgress("保存轨迹文件", 90, 0, trackPoints.size))
             
             val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
             val rawFileName = File(rawFilePath).nameWithoutExtension
