@@ -114,47 +114,58 @@ jobs:
         name: KartMotionTrack
         path: ./release
     
+    - name: Verify APK exists
+      run: |
+        ls -la ./release/
+        if [ ! -f ./release/app-release.apk ]; then
+          echo "ERROR: APK not found!"
+          exit 1
+        fi
+    
     - name: Get Version Info
       id: version
       run: |
         VERSION_NAME=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
+        VERSION_CODE=$(grep -oP 'versionCode\s*=\s*\K\d+' app/build.gradle.kts)
         echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_OUTPUT
-        echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
-        echo "VERSION_CODE=$(grep -oP 'versionCode\s*=\s*\K\d+' app/build.gradle.kts)" >> $GITHUB_ENV
-    
-    - name: Generate Release Notes
-      run: |
-        CHANGELOG=$(git log --oneline -10)
-        
-        cat > release_notes.md << RELEASE_EOF
-        ## Changes in v\${VERSION_NAME}
-        
-        ### Commits
-        
-        \`\`\`bash
-        ${CHANGELOG}
-        \`\`\`
-        
-        ### Downloads
-        - **KartMotionTrack-v\${VERSION_NAME}.apk**: Ready to install
-        
-        ### Installation
-        1. Download the APK below
-        2. Enable 'Install from unknown sources' in settings
-        3. Open the APK to install
-        
-        ### Build Info
-        - Version Name: \${VERSION_NAME}
-        - Version Code: \${VERSION_CODE}
-        - Build Date: $(date '+%Y-%m-%d %H:%M:%S')
-        RELEASE_EOF
-        
-        cat release_notes.md
+        echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_OUTPUT
+        echo "APK_NAME=KartMotionTrack-v${VERSION_NAME}.apk" >> $GITHUB_OUTPUT
     
     - name: Rename APK
       run: |
-        mv ./release/app-release.apk ./release/KartMotionTrack-v${VERSION_NAME}.apk
+        mv ./release/app-release.apk ./release/KartMotionTrack-v${{ steps.version.outputs.VERSION_NAME }}.apk
         ls -la ./release/
+    
+    - name: Generate Release Notes
+      run: |
+        VERSION_NAME="${{ steps.version.outputs.VERSION_NAME }}"
+        VERSION_CODE="${{ steps.version.outputs.VERSION_CODE }}"
+        CHANGELOG=$(git log --oneline -10)
+        
+        cat > release_notes.md << EOF
+## Changes in v${VERSION_NAME}
+
+### Commits
+
+\`\`\`bash
+${CHANGELOG}
+\`\`\`
+
+### Downloads
+- **KartMotionTrack-v${VERSION_NAME}.apk**: Ready to install
+
+### Installation
+1. Download the APK below
+2. Enable 'Install from unknown sources' in settings
+3. Open the APK to install
+
+### Build Info
+- Version Name: ${VERSION_NAME}
+- Version Code: ${VERSION_CODE}
+- Build Date: $(date '+%Y-%m-%d %H:%M:%S')
+EOF
+        
+        cat release_notes.md
     
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
@@ -163,9 +174,9 @@ jobs:
         draft: false
         prerelease: false
         files: |
-          ./release/KartMotionTrack-v${VERSION_NAME}.apk
-        tag_name: v${VERSION_NAME}
-        release_name: KartMotionTrack v${VERSION_NAME}
+          ./release/KartMotionTrack-v${{ steps.version.outputs.VERSION_NAME }}.apk
+        tag_name: v${{ steps.version.outputs.VERSION_NAME }}
+        release_name: KartMotionTrack v${{ steps.version.outputs.VERSION_NAME }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -185,10 +196,6 @@ jobs:
         echo "|-----|--------|"
         echo "| Build | ${{ needs.build.result }} |"
         echo "| Release | ${{ needs.release.result }} |"
-        echo ""
-        echo "## Version Info"
-        echo "- Version Name: 1.3"
-        echo "- Version Code: 4"
         echo ""
         echo "## Artifacts"
         echo "- Release APK: 30 days retention"
