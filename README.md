@@ -4,24 +4,26 @@
 
 ## 📦 下载安装
 
-### 最新版本 (v1.3)
+### 最新版本 (v1.4)
 [![GitHub Actions](https://img.shields.io/github/actions/workflow/status/Cooooldwind/KartMotionTrack/android-ci.yml?branch=main&label=Build&style=flat-square)](https://github.com/Cooooldwind/KartMotionTrack/actions)
 
-- **[下载 Debug APK (最新构建)](https://github.com/Cooooldwind/KartMotionTrack/actions)**
-  - 点击最新运行的 workflow
-  - 在 Artifacts 下载 `app-debug-apk-xxx`
-- **Release APK (仅 main 分支)** - 同样在 Actions 下载
+**构建说明：**
+- Commit 包含 `[debug]` → 自动构建 Debug APK
+- Commit 包含 `[release]` → 自动构建并发布 Release APK
+- 其他情况 → 跳过构建
 
 ## 🎯 功能特性
 
 - **100Hz 高频采样** - 传感器 100Hz 采样
 - **GPS 线性插值** - 1Hz GPS 信号插值为 100Hz 轨迹点
-- **原始数据记录** - 先记录后处理，支持离线轨迹生成
+- **GPS 锁定等待** - 先等待 GPS 锁定再开始记录
 - **GPS Kalman 滤波** - 卡尔曼滤波平滑 GPS 信号
 - **自适应插值** - 根据传感器数据自动调整轨迹偏移
 - **轨迹可视化** - Canvas 绘制 2D 轨迹预览
+- **卫星地图背景** - 支持星图地球数据云卫星图
+- **长按保存图片** - 一键保存轨迹图片到相册
 - **多格式导出** - 支持 GPX/CSV 格式导出
-- **简洁 UI** - 实时显示记录状态和统计信息
+- **帮助和设置** - 提供详细使用说明和自定义配置
 
 ## 📱 技术架构
 
@@ -30,26 +32,16 @@ KartMotionTrack/
 ├── app/
 │   ├── src/main/java/com/karttracker/
 │   │   ├── model/              # 数据模型
-│   │   │   ├── RawDataPoint.kt      # 原始数据点
-│   │   │   ├── ProcessedTrack.kt    # 处理后轨迹
-│   │   │   └── TrackPoint.kt       # 轨迹点
 │   │   ├── sensors/            # 传感器采集
-│   │   │   ├── IMUSampler.kt        # IMU 采样
-│   │   │   └── GPSCollector.kt      # GPS 采集
 │   │   ├── processing/         # 信号处理
-│   │   │   ├── KalmanGPSFilter.kt   # GPS 卡尔曼滤波
-│   │   │   └── AdaptiveInterpolation.kt # 自适应插值
-│   │   ├── storage/            # 数据存储
-│   │   │   ├── RawDataWriter.kt     # 原始数据写入
-│   │   │   ├── RawDataReader.kt     # 原始数据读取
-│   │   │   └── TrackProcessor.kt    # 轨迹后处理
+│   │   ├── storage/           # 数据存储
+│   │   ├── HelpActivity.kt     # 帮助页面
+│   │   ├── SettingsActivity.kt # 设置页面
 │   │   ├── KartTracker.kt      # 主控制器
 │   │   ├── MainActivity.kt     # 主界面
 │   │   ├── HistoryActivity.kt  # 历史记录
-│   │   ├── TrackDetailActivity.kt # 轨迹详情 + 可视化
-│   │   └── TrackVisualizationView.kt # 轨迹自定义绘制
+│   │   └── TrackDetailActivity.kt # 轨迹详情
 │   └── res/                    # 资源文件
-└── docs/                       # 设计文档
 ```
 
 ## 🚀 快速开始
@@ -75,12 +67,22 @@ KartMotionTrack/
 
 1. **启动应用** - 在设备上打开 KartMotionTrack
 2. **授权权限** - 授予位置和传感器权限
-3. **开始追踪** - 点击"开始追踪"按钮
-4. **停止追踪** - 点击"停止追踪"按钮
+3. **开始追踪** - 点击"开始追踪"按钮，等待 GPS 锁定
+4. **停止追踪** - 点击"停止追踪"按钮（有数据才能停止）
 5. **查看历史** - 点击"历史轨迹"查看所有记录
 6. **生成轨迹** - 点击"生成轨迹"进行离线处理
 7. **查看轨迹** - 在详情页查看 2D 轨迹预览
-8. **导出数据** - 处理后可导出 GPX 或 CSV 格式
+8. **保存图片** - 长按轨迹图片保存到相册
+9. **导出数据** - 处理后可导出 GPX 或 CSV 格式
+
+### 卫星地图设置
+
+1. 点击右下角"帮助"按钮
+2. 按照说明前往 https://datacloud.geovisearth.com/ 获取 API Token
+3. 点击右下角"设置"按钮
+4. 填入 API Token
+5. 调整地图精度（1-5档或自动）
+6. 生成轨迹时可显示卫星地图背景
 
 ## 📊 数据格式
 
@@ -120,19 +122,7 @@ JSONL 格式，每行一个数据点：
 - 自动缩放和平移
 - 起点（绿色）/ 终点（红色）标记
 - 网格背景辅助查看
-
-## 📝 开发计划
-
-- [x] 基础项目结构
-- [x] 传感器采集模块
-- [x] 原始数据记录
-- [x] 轨迹后处理引擎
-- [x] GPS Kalman 滤波
-- [x] 自适应插值算法
-- [x] 数据导出（GPX、CSV）
-- [x] 轨迹可视化
-- [ ] 赛道分析功能
-- [ ] 云端同步
+- 支持卫星地图背景
 
 ## 📄 许可证
 

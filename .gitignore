@@ -36,3 +36,8 @@ local.properties
 bin/
 gen/
 out/
+*.gpx
+*.csv
+raw_track_*.json
+processed_*.json
+export_*.json
