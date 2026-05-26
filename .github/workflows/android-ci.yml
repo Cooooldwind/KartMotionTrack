@@ -141,30 +141,29 @@ jobs:
         VERSION_NAME="${{ steps.version.outputs.VERSION_NAME }}"
         VERSION_CODE="${{ steps.version.outputs.VERSION_CODE }}"
         CHANGELOG=$(git log --oneline -10)
-        CODE_BLOCK="\`\`\`"
         
-        cat > release_notes.md << EOF
-## Changes in v${VERSION_NAME}
-
-### Commits
-
-${CODE_BLOCK}bash
-${CHANGELOG}
-${CODE_BLOCK}
-
-### Downloads
-- **KartMotionTrack-v${VERSION_NAME}.apk**: Ready to install
-
-### Installation
-1. Download the APK below
-2. Enable 'Install from unknown sources' in settings
-3. Open the APK to install
-
-### Build Info
-- Version Name: ${VERSION_NAME}
-- Version Code: ${VERSION_CODE}
-- Build Date: $(date '+%Y-%m-%d %H:%M:%S')
-EOF
+        {
+          echo "## Changes in v${VERSION_NAME}"
+          echo ""
+          echo "### Commits"
+          echo ""
+          echo "\`\`\`bash"
+          echo "${CHANGELOG}"
+          echo "\`\`\`"
+          echo ""
+          echo "### Downloads"
+          echo "- **KartMotionTrack-v${VERSION_NAME}.apk**: Ready to install"
+          echo ""
+          echo "### Installation"
+          echo "1. Download the APK below"
+          echo "2. Enable 'Install from unknown sources' in settings"
+          echo "3. Open the APK to install"
+          echo ""
+          echo "### Build Info"
+          echo "- Version Name: ${VERSION_NAME}"
+          echo "- Version Code: ${VERSION_CODE}"
+          echo "- Build Date: $(date '+%Y-%m-%d %H:%M:%S')"
+        } > release_notes.md
         
         cat release_notes.md
     
