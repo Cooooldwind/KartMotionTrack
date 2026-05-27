@@ -134,7 +134,7 @@ class TrackVisualizationView @JvmOverloads constructor(
         val top = bounds.top
         val bottom = bounds.bottom
 
-        val gridStep = 0.0005
+        val gridStep = 0.0005f
         var x = left
         while (x < right) {
             val px = ((x - bounds.left) * scale + offset[0]).toFloat()
