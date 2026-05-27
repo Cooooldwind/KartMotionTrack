@@ -90,14 +90,14 @@ class TrackVisualizationView @JvmOverloads constructor(
             maxLon = max(maxLon, point.lon)
         }
 
-        val paddingLat = (maxLat - minLat) * 0.1
-        val paddingLon = (maxLon - minLon) * 0.1
+        val paddingLat = (maxLat - minLat) * 0.15
+        val paddingLon = (maxLon - minLon) * 0.15
 
         return RectF(
-            minLon.toFloat(),
-            maxLat.toFloat(),
-            maxLon.toFloat(),
-            minLat.toFloat()
+            (minLon - paddingLon).toFloat(),
+            (maxLat + paddingLat).toFloat(),
+            (maxLon + paddingLon).toFloat(),
+            (minLat - paddingLat).toFloat()
         )
     }
 
@@ -105,7 +105,7 @@ class TrackVisualizationView @JvmOverloads constructor(
         val latRange = abs(bounds.top - bounds.bottom)
         val lonRange = abs(bounds.right - bounds.left)
 
-        val padding = 60f
+        val padding = 40f
         val drawWidth = width - padding * 2
         val drawHeight = height - padding * 2
 
@@ -116,20 +116,23 @@ class TrackVisualizationView @JvmOverloads constructor(
     }
 
     private fun calculateOffset(bounds: RectF, scale: Float): FloatArray {
-        val centerX = (bounds.left + bounds.right) / 2
-        val centerY = (bounds.top + bounds.bottom) / 2
+        val centerLon = (bounds.left + bounds.right) / 2
+        val centerLat = (bounds.top + bounds.bottom) / 2
 
-        val offsetX = (width / 2f) - (centerX - bounds.left) * scale
-        val offsetY = (height / 2f) - (centerY - bounds.top) * scale
+        val viewCenterX = width / 2f
+        val viewCenterY = height / 2f
 
-        return floatArrayOf(offsetX, offsetY)
+        return floatArrayOf(
+            viewCenterX - (centerLon - bounds.left) * scale,
+            viewCenterY - (centerLat - bounds.bottom) * scale
+        )
     }
 
     private fun drawGrid(canvas: Canvas, bounds: RectF, scale: Float, offset: FloatArray) {
-        val left = bounds.left - 0.0001
-        val right = bounds.right + 0.0001
-        val top = bounds.top + 0.0001
-        val bottom = bounds.bottom - 0.0001
+        val left = bounds.left
+        val right = bounds.right
+        val top = bounds.top
+        val bottom = bounds.bottom
 
         val gridStep = 0.0005
         var x = left

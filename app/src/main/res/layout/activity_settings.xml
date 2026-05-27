@@ -110,7 +110,7 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:valueFrom="15"
-                        android:valueTo="19"
+                        android:valueTo="18"
                         android:stepSize="1"
                         android:value="17"/>
 

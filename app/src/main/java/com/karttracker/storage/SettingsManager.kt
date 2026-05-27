@@ -31,7 +31,7 @@ class SettingsManager(context: Context) {
     
     var zoomLevel: Int
         get() = prefs.getInt(KEY_ZOOM_LEVEL, DEFAULT_ZOOM_LEVEL)
-        set(value) = prefs.edit().putInt(KEY_ZOOM_LEVEL, value.coerceIn(15, 19)).apply()
+        set(value) = prefs.edit().putInt(KEY_ZOOM_LEVEL, value.coerceIn(15, 18)).apply()
     
     var autoZoom: Boolean
         get() = prefs.getBoolean(KEY_AUTO_ZOOM, DEFAULT_AUTO_ZOOM)

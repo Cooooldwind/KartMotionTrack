@@ -106,8 +106,7 @@ class SettingsActivity : AppCompatActivity() {
             15 -> "低"
             16 -> "中低"
             17 -> "中"
-            18 -> "中高"
-            19 -> "高"
+            18 -> "高"
             else -> "中"
         }
         tvZoomLevel.text = "当前精度：${level}级 ($quality)"
