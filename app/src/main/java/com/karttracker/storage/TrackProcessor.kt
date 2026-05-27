@@ -5,6 +5,7 @@ import com.google.gson.Gson
 import com.karttracker.model.ProcessedTrack
 import com.karttracker.model.TrackPoint
 import com.karttracker.processing.AdaptiveInterpolation
+import com.karttracker.processing.IMUFusionProcessor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -17,6 +18,7 @@ class TrackProcessor(private val context: Context) {
     private val gson = Gson()
     private val rawDataReader = RawDataReader()
     private val interpolation = AdaptiveInterpolation(100)
+    private val imuFusion = IMUFusionProcessor(100)
     
     data class ProcessResult(
         val success: Boolean,

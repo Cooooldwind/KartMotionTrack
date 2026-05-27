@@ -21,6 +21,13 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var tvZoomLevel: TextView
     private lateinit var rgThemeMode: RadioGroup
     
+    private lateinit var sliderImuGain: Slider
+    private lateinit var tvImuGain: TextView
+    private lateinit var sliderFilterAlpha: Slider
+    private lateinit var tvFilterAlpha: TextView
+    private lateinit var sliderGaussianSigma: Slider
+    private lateinit var tvGaussianSigma: TextView
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
@@ -41,6 +48,13 @@ class SettingsActivity : AppCompatActivity() {
         sliderZoom = findViewById(R.id.sliderZoom)
         tvZoomLevel = findViewById(R.id.tvZoomLevel)
         rgThemeMode = findViewById(R.id.rgThemeMode)
+        
+        sliderImuGain = findViewById(R.id.sliderImuGain)
+        tvImuGain = findViewById(R.id.tvImuGain)
+        sliderFilterAlpha = findViewById(R.id.sliderFilterAlpha)
+        tvFilterAlpha = findViewById(R.id.tvFilterAlpha)
+        sliderGaussianSigma = findViewById(R.id.sliderGaussianSigma)
+        tvGaussianSigma = findViewById(R.id.tvGaussianSigma)
     }
     
     private fun loadSettings() {
@@ -54,6 +68,13 @@ class SettingsActivity : AppCompatActivity() {
             SettingsManager.THEME_MODE_DARK -> rgThemeMode.check(R.id.rbDark)
             else -> rgThemeMode.check(R.id.rbSystem)
         }
+        
+        sliderImuGain.value = settingsManager.imuGain
+        updateImuGainText(settingsManager.imuGain)
+        sliderFilterAlpha.value = settingsManager.complementaryFilterAlpha
+        updateFilterAlphaText(settingsManager.complementaryFilterAlpha)
+        sliderGaussianSigma.value = settingsManager.gaussianSmoothSigma
+        updateGaussianSigmaText(settingsManager.gaussianSmoothSigma.toInt())
         
         updateSliderState()
     }
@@ -78,6 +99,21 @@ class SettingsActivity : AppCompatActivity() {
             }
             settingsManager.themeMode = mode
             applyTheme(mode)
+        }
+        
+        sliderImuGain.addOnChangeListener { _, value, _ ->
+            settingsManager.imuGain = value
+            updateImuGainText(value)
+        }
+        
+        sliderFilterAlpha.addOnChangeListener { _, value, _ ->
+            settingsManager.complementaryFilterAlpha = value
+            updateFilterAlphaText(value)
+        }
+        
+        sliderGaussianSigma.addOnChangeListener { _, value, _ ->
+            settingsManager.gaussianSmoothSigma = value
+            updateGaussianSigmaText(value.toInt())
         }
         
         etApiToken.setOnFocusChangeListener { _, hasFocus ->
@@ -106,10 +142,23 @@ class SettingsActivity : AppCompatActivity() {
             15 -> "低"
             16 -> "中低"
             17 -> "中"
-            18 -> "高"
+            18 -> "中高"
+            19 -> "高"
             else -> "中"
         }
         tvZoomLevel.text = "当前精度：${level}级 ($quality)"
+    }
+    
+    private fun updateImuGainText(value: Float) {
+        tvImuGain.text = String.format("当前值：%.2f", value)
+    }
+    
+    private fun updateFilterAlphaText(value: Float) {
+        tvFilterAlpha.text = String.format("当前值：%.2f", value)
+    }
+    
+    private fun updateGaussianSigmaText(value: Int) {
+        tvGaussianSigma.text = "当前值：$value"
     }
     
     private fun applyTheme(mode: String) {

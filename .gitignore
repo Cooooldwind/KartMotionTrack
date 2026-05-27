@@ -41,3 +41,4 @@ out/
 raw_track_*.json
 processed_*.json
 export_*.json
+kart_analyze/
